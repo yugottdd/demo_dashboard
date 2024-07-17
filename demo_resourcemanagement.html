@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPU Resource Reservation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0073bb;
+            --secondary-color: #232f3e;
+            --background-color: #f2f3f3;
+            --card-background: #ffffff;
+            --text-color: #16191f;
+            --border-color: #dadce0;
+            --hover-color: #e8f0fe;
+            --progress-bar-bg: #e0e0e0;
+            --progress-bar-fill: #4CAF50;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 10px 0;
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15);
+        }
+        nav ul {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        nav ul li {
+            display: inline;
+            margin-right: 20px;
+        }
+        nav ul li a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .card {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+            margin-bottom: 20px;
+        }
+        .card h2, .card h3 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #005d9b;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0 -10px;
+        }
+        .form-group {
+            flex: 1 0 calc(50% - 20px);
+            margin: 0 10px 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #5f6368;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 16px;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0,115,187,0.25);
+        }
+        .reservation-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .reservation-item {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 4px;
+            transition: box-shadow 0.3s;
+        }
+        .reservation-item:hover {
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+        }
+        .reservation-item .status {
+            float: right;
+            padding: 4px 8px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .status-scheduled {
+            background-color: #fce8b2;
+            color: #694a07;
+        }
+        .status-in-progress {
+            background-color: #d2e3fc;
+            color: #174ea6;
+        }
+        .gpu-info {
+            background-color: var(--hover-color);
+            padding: 16px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .gpu-info h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+        .progress-bar {
+            background-color: var(--progress-bar-bg);
+            border-radius: 4px;
+            height: 8px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            background-color: var(--progress-bar-fill);
+            height: 100%;
+            transition: width 0.5s ease-in-out;
+        }
+        .price-prediction {
+            background-color: #e8f5e9;
+            border: 1px solid #a5d6a7;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background-color: #202124;
+                --card-background: #2d2e31;
+                --text-color: #e8eaed;
+                --border-color: #5f6368;
+                --hover-color: #3c4043;
+            }
+            .price-prediction {
+                background-color: #1e3a29;
+                border-color: #2e7d32;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>GPU Resource Management Console</h1>
+            <nav>
+                <ul>
+                    <li><a href="#dashboard">ダッシュボード</a></li>
+                    <li><a href="#reservation">リソース予約</a></li>
+                    <li><a href="#billing">課金情報</a></li>
+                    <li><a href="#support">サポート</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+    <main class="container">
+        <section id="reservation">
+            <h2>AI GPUリソース予約</h2>
+            <div class="card">
+                <h3>新規予約</h3>
+                <form id="reservation-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="gpu-type">GPUタイプ</label>
+                            <select id="gpu-type" required>
+                                <option value="">選択してください</option>
+                                <option value="h100">NVIDIA H100</option>
+                                <option value="h200">NVIDIA H200</option>
+                                <option value="a100">NVIDIA A100</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="gpu-count">GPU数</label>
+                            <select id="gpu-count" required>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="4">4</option>
+                                <option value="8">8</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="start-date">開始日時</label>
+                            <input type="datetime-local" id="start-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="duration">予約時間（時間）</label>
+                            <input type="number" id="duration" min="1" max="168" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="task-type">タスクタイプ</label>
+                            <select id="task-type" required>
+                                <option value="">選択してください</option>
+                                <option value="llm-training">大規模言語モデルのトレーニング</option>
+                                <option value="llm-inference">大規模言語モデルの推論</option>
+                                <option value="diffusion-model">拡散モデル（画像生成）</option>
+                                <option value="multimodal">マルチモーダルAI</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="framework">フレームワーク</label>
+                            <select id="framework" required>
+                                <option value="">選択してください</option>
+                                <option value="pytorch">PyTorch</option>
+                                <option value="tensorflow">TensorFlow</option>
+                                <option value="jax">JAX</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">予約する</button>
+                </form>
+                <div id="price-prediction" class="price-prediction" style="display: none;">
+                    予測価格: <span id="predicted-price">¥0</span>
+                </div>
+            </div>
+            <div class="card">
+                <h3>予約済みタスク</h3>
+                <ul class="reservation-list">
+                    <li class="reservation-item">
+                        <span class="status status-in-progress">進行中</span>
+                        <strong>大規模言語モデルのトレーニング</strong><br>
+                        NVIDIA H100 x 8 - PyTorch<br>
+                        2024/07/18 14:00 〜 2024/07/25 14:00<br>
+                        進行状況: 35% 完了
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill" style="width: 35%;"></div>
+                        </div>
+                        予測終了時間: 2024/07/25 08:30
+                    </li>
+                    <li class="reservation-item">
+                        <span class="status status-scheduled">予約済</span>
+                        <strong>拡散モデル（画像生成）</strong><br>
+                        NVIDIA H200 x 4 - JAX<br>
+                        2024/07/26 09:00 〜 2024/07/28 09:00
+                    </li>
+                </ul>
+            </div>
+            <div class="card gpu-info">
+                <h3>利用可能なGPUについて</h3>
+                <p>当サービスでは、最新の生成AI向けGPUを提供しています：</p>
+                <ul>
+                    <li><strong>NVIDIA H100：</strong> 最新のホッパーアーキテクチャを採用し、大規模言語モデルや拡散モデルのトレーニングに最適化されています。</li>
+                    <li><strong>NVIDIA H200：</strong> H100の改良版で、より大きなメモリ容量を持ち、大規模モデルの推論に特に適しています。</li>
+                    <li><strong>NVIDIA A100：</strong> アンペアアーキテクチャを採用し、幅広いAIワークロードに対応する高性能GPUです。</li>
+                </ul>
+                <p>各GPUタイプに応じて、CUDA、cuDNN、NCCL等の最適化されたライブラリがプリインストールされた環境を自動で構築します。</p>
+            </div>
+        </section>
+    </main>
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 AI GPU Resource Management. All rights reserved.</p>
+        </div>
+    </footer>
+    <script>
+        document.getElementById('reservation-form').addEventListener('input', function() {
+            const gpuType = document.getElementById('gpu-type').value;
+            const gpuCount = document.getElementById('gpu-count').value;
+            const duration = document.getElementById('duration').value;
+
+            if (gpuType && gpuCount && duration) {
+                let pricePerHour;
+                switch (gpuType) {
+                    case 'h100':
+                        pricePerHour = 10000;
+                        break;
+                    case 'h200':
+                        pricePerHour = 15000;
+                        break;
+                    case 'a100':
+                        pricePerHour = 5000;
+                        break;
+                    default:
+                        pricePerHour = 0;
+                }
+
+                const totalPrice = pricePerHour * gpuCount * duration;
+                document.getElementById('predicted-price').textContent = `¥${totalPrice.toLocaleString()}`;
+                document.getElementById('price-prediction').style.display = 'block';
+            } else {
+                document.getElementById('price-prediction').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
